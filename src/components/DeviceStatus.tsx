@@ -12,7 +12,7 @@ export default function DeviceStatus({ dvrs, cameras }: Props) {
   const [deviceStatus, setDeviceStatus] = useState<Record<string, 'online' | 'offline'>>({});
   const [historyLog, setHistoryLog] = useState<StatusHistory[]>([]);
   const [expandedDvrs, setExpandedDvrs] = useState<string[]>(dvrs.map(d => d.id));
-  
+
   // Initialize deviceStatus with 'offline' on first render to avoid false offline events
   const [isFirstPing, setIsFirstPing] = useState(true);
 
@@ -28,7 +28,7 @@ export default function DeviceStatus({ dvrs, cameras }: Props) {
         // Clean up history older than 2 days
         const twoDaysAgo = new Date();
         twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
-        
+
         await supabase
           .from('status_history')
           .delete()
@@ -54,7 +54,7 @@ export default function DeviceStatus({ dvrs, cameras }: Props) {
     // Ping devices on the local network by attempting to load an image/favicon
     const pingDevices = async () => {
       const newStatus: Record<string, 'online' | 'offline'> = {};
-      
+
       const checkOnline = async (host: string): Promise<boolean> => {
         try {
           const res = await fetch(`/api/proxy/ping?host=${encodeURIComponent(host)}`);
@@ -83,7 +83,7 @@ export default function DeviceStatus({ dvrs, cameras }: Props) {
           const isOnline = await checkOnline(cam.ip_address);
           return { id: cam.id, status: isOnline ? 'online' : 'offline' };
         });
-        
+
         const results = await Promise.all(chunkPromises);
         camResults.push(...results);
       }
@@ -103,7 +103,7 @@ export default function DeviceStatus({ dvrs, cameras }: Props) {
         dvrs.forEach(dvr => {
           const oldStatus = prevStatus[dvr.id];
           const currentStatus = newStatus[dvr.id];
-          
+
           // Log if status changed, OR if it's the first ping and the device is offline
           if ((oldStatus && oldStatus !== currentStatus) || (isFirstPing && currentStatus === 'offline')) {
             newHistoryEvents.push({
@@ -120,7 +120,7 @@ export default function DeviceStatus({ dvrs, cameras }: Props) {
         cameras.forEach(cam => {
           const oldStatus = prevStatus[cam.id];
           const currentStatus = newStatus[cam.id];
-          
+
           // Log if status changed, OR if it's the first ping and the device is offline
           if ((oldStatus && oldStatus !== currentStatus) || (isFirstPing && currentStatus === 'offline')) {
             newHistoryEvents.push({
@@ -138,7 +138,7 @@ export default function DeviceStatus({ dvrs, cameras }: Props) {
           supabase.from('status_history').insert(newHistoryEvents).then(({ error }) => {
             if (error) console.error("Failed to insert status history:", error);
           });
-          
+
           // Update local state optimistically
           setHistoryLog(prev => {
             // Generate temporary IDs for optimistic UI
@@ -150,10 +150,10 @@ export default function DeviceStatus({ dvrs, cameras }: Props) {
             return combined.slice(0, 50); // Keep last 50 events
           });
         }
-        
+
         return newStatus;
       });
-      
+
       setIsFirstPing(false);
     };
 
@@ -189,12 +189,12 @@ export default function DeviceStatus({ dvrs, cameras }: Props) {
             {dvrs.map(dvr => {
               const dvrCameras = cameras.filter(c => c.dvr_id === dvr.id);
               const status = deviceStatus[dvr.id] || 'offline';
-              
+
               const isExpanded = expandedDvrs.includes(dvr.id);
-              
+
               return (
                 <div key={dvr.id} className="space-y-2">
-                  <div 
+                  <div
                     className="flex items-center justify-between p-3 bg-[#20232b] rounded-lg border border-[#2a2d36] cursor-pointer hover:border-gray-600 transition-colors"
                     onClick={() => toggleDvrExpand(dvr.id)}
                   >
@@ -212,7 +212,7 @@ export default function DeviceStatus({ dvrs, cameras }: Props) {
                             {dvr.ip_address}:{dvr.port}
                           </span>
                           {dvr.can_view_direct && (
-                            <a 
+                            <a
                               href={`http://${dvr.ip_address}:${dvr.port}`}
                               target="_blank"
                               rel="noopener noreferrer"
@@ -228,16 +228,15 @@ export default function DeviceStatus({ dvrs, cameras }: Props) {
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="text-xs text-gray-500">{dvrCameras.length} Cam</span>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${
-                        status === 'online' 
-                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${status === 'online'
+                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                           : 'bg-red-500/10 text-red-400 border-red-500/20'
-                      }`}>
+                        }`}>
                         {status === 'online' ? 'Online' : 'Offline'}
                       </span>
                     </div>
                   </div>
-                  
+
                   {isExpanded && dvrCameras.length > 0 && (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 pl-6 border-l-2 border-[#2a2d36] ml-4">
                       {dvrCameras.map((cam, index) => {
@@ -281,14 +280,13 @@ export default function DeviceStatus({ dvrs, cameras }: Props) {
               ) : (
                 historyLog.map((history, idx) => (
                   <div key={history.id} className="relative pl-6">
-                    <span className={`absolute -left-1.5 top-1.5 w-3 h-3 rounded-full border-2 border-[#16181d] ${
-                      history.event === 'online' ? 'bg-emerald-500' : 'bg-red-500'
-                    }`}></span>
+                    <span className={`absolute -left-1.5 top-1.5 w-3 h-3 rounded-full border-2 border-[#16181d] ${history.event === 'online' ? 'bg-emerald-500' : 'bg-red-500'
+                      }`}></span>
                     <div className="bg-[#20232b] p-3 rounded-lg border border-[#2a2d36]">
                       <div className="flex justify-between items-start mb-1">
                         <span className="text-sm font-medium text-gray-200">{history.device_name}</span>
                         <span className="text-xs font-mono text-gray-500">
-                          {new Date(history.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          {new Date(history.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
