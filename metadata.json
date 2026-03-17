@@ -1,0 +1,5 @@
+{
+  "name": "Camera & Parking Dashboard",
+  "description": "Dashboard for viewing cameras, monitoring DVR/Camera status, and tracking vehicle entry/exit.",
+  "requestFramePermissions": []
+}
