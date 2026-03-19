@@ -73,22 +73,19 @@ def get_rtsp_url(cam_id):
         # Lấy mật khẩu từ stream_url của camera
         pwd = ''
         stream_url = cam.get('stream_url')
-        if stream_url and 'password=' in stream_url:
-            # Parse URL để lấy password: http://...&password=abcd1234
-            import urllib.parse
-            parsed_url = urllib.parse.urlparse(stream_url)
-            query_params = urllib.parse.parse_qs(parsed_url.query)
-            if 'password' in query_params:
-                pwd = query_params['password'][0]
-        elif stream_url and '@' in stream_url:
-            # Parse URL dạng http://admin:abcd1234@192.168...
+        if stream_url:
             try:
-                import re
-                match = re.search(r'://[^:]+:([^@]+)@', stream_url)
-                if match:
-                    pwd = match.group(1)
-            except:
-                pass
+                # Lấy phần authority (giữa :// và dấu / tiếp theo)
+                without_scheme = stream_url.split('://', 1)[1]
+                authority = without_scheme.split('/', 1)[0]
+                
+                # Tách credentials và host bằng dấu @ cuối cùng trong authority
+                if '@' in authority:
+                    credentials = authority.rsplit('@', 1)[0]
+                    if ':' in credentials:
+                        pwd = credentials.split(':', 1)[1]
+            except Exception as e:
+                print(f"Lỗi khi parse stream_url {stream_url}: {e}")
                 
         # URL-encode password để tránh lỗi với các ký tự đặc biệt như @, #, !
         import urllib.parse

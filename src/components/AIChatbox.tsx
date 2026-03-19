@@ -3,7 +3,7 @@ import { MessageSquare, X, Send, Bot, User, Loader2, ImagePlus } from 'lucide-re
 import { GoogleGenAI, Type, FunctionDeclaration } from '@google/genai';
 import { DVR, Camera } from '../types';
 import { supabase } from '../lib/supabase';
-import { queryContainerLogs, getStatistics, queryDeviceStatus, queryVehicleEvents, getSystemConfig } from '../lib/supabase-queries';
+import { queryContainerLogs, getStatistics, queryDeviceStatus, queryVehicleEvents, queryTallyEvents, getSoftwareGuide, getSystemConfig } from '../lib/supabase-queries';
 
 interface Props {
   dvrs: DVR[];
@@ -118,10 +118,34 @@ const getSystemConfigDeclaration: FunctionDeclaration = {
   }
 };
 
+const queryTallyEventsDeclaration: FunctionDeclaration = {
+  name: 'queryTallyEvents',
+  description: 'Tìm kiếm lịch sử sự kiện tally container (chụp sườn + nóc để kiểm tra hư hỏng). Dùng khi người dùng hỏi về tally, kiểm tra hư hỏng, damage, ảnh tally.',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {
+      date_from: { type: Type.STRING, description: 'Ngày bắt đầu (ISO format)' },
+      date_to: { type: Type.STRING, description: 'Ngày kết thúc (ISO format)' },
+      container_no: { type: Type.STRING, description: 'Số container cần tìm' },
+      damage_status: { type: Type.STRING, description: 'Trạng thái hư hỏng cần lọc' },
+      limit: { type: Type.NUMBER, description: 'Số kết quả tối đa (mặc định 20)' }
+    }
+  }
+};
+
+const getSoftwareGuideDeclaration: FunctionDeclaration = {
+  name: 'getSoftwareGuide',
+  description: 'Lấy hướng dẫn sử dụng phần mềm CamGuard: các tab, tính năng, cách dùng. Dùng khi người dùng hỏi "hướng dẫn", "cách dùng", "phần mềm có gì", "tính năng", "help", "giúp đỡ", "làm được gì".',
+  parameters: {
+    type: Type.OBJECT,
+    properties: {}
+  }
+};
+
 export default function AIChatbox({ dvrs, cameras, setDvrs, setCameras, useMock, refetch }: Props) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
-    { id: '1', role: 'ai', text: 'Xin chào! Tôi là trợ lý AI quản lý hệ thống Container Gate. Bạn có thể hỏi tôi về lịch sử container, thống kê, trạng thái thiết bị, cấu hình hệ thống, hoặc yêu cầu thêm DVR/Camera.' }
+    { id: '1', role: 'ai', text: 'Xin chào! Tôi là trợ lý AI của hệ thống CamGuard. Bạn có thể hỏi tôi về:\n- Lịch sử container vào/ra/cân\n- Sự kiện tally & kiểm tra hư hỏng\n- Thống kê tổng hợp\n- Trạng thái thiết bị\n- Xe ra vào bãi\n- Cấu hình hệ thống\n- Hướng dẫn sử dụng phần mềm\n- Hoặc yêu cầu thêm DVR/Camera' }
   ]);
   const [input, setInput] = useState('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -232,7 +256,7 @@ export default function AIChatbox({ dvrs, cameras, setDvrs, setCameras, useMock,
       apiContents.push({ role: 'user', parts: currentUserParts });
 
       // Provide context about existing devices
-      const systemInstruction = `Bạn là trợ lý AI quản lý hệ thống Container Gate (cổng container). Hãy trả lời ngắn gọn, thân thiện bằng tiếng Việt.
+      const systemInstruction = `Bạn là trợ lý AI quản lý hệ thống CamGuard - Container Gate AI. Hãy trả lời ngắn gọn, thân thiện bằng tiếng Việt.
 
 Bạn có thể:
 1. Thêm Đầu ghi (DVR) và Camera vào hệ thống (gọi addDvr, addCamera)
@@ -241,14 +265,27 @@ Bạn có thể:
 4. Kiểm tra trạng thái thiết bị online/offline (gọi queryDeviceStatus)
 5. Tra cứu lịch sử xe ra vào bãi theo biển số (gọi queryVehicleEvents)
 6. Xem cấu hình hệ thống: số làn, số camera (gọi getSystemConfig)
+7. Tra cứu lịch sử tally container: ảnh sườn/nóc, hư hỏng (gọi queryTallyEvents)
+8. Hướng dẫn sử dụng phần mềm: các tính năng, tab, cách dùng (gọi getSoftwareGuide)
 
 Hệ thống hiện có:
 - 5 làn: Làn Vào 1, Làn Vào 2, Trạm Cân, Làn Ra 1, Làn Ra 2
-- 14 cameras tổng cộng
+- 14 cameras tổng cộng cho Container Gate
+- 4 cameras cho Tally Station
 - Đầu ghi: ${dvrs.map(d => d.name + ' (' + d.ip_address + ')').join(', ') || 'chưa có'}
 - Camera: ${cameras.length} camera
 
+Các bảng dữ liệu trong hệ thống:
+- container_logs: Lịch sử xe container vào/ra cổng (số cont, làn, loại sự kiện IN/OUT/WEIGH, ảnh 4 góc)
+- tally_events: Lịch sử tally container (số cont, trạng thái hư hỏng, ảnh sườn + nóc)
+- vehicle_events: Lịch sử xe ra vào bãi (biển số, loại in/out, ảnh)
+- status_history: Lịch sử trạng thái thiết bị (online/offline)
+- dvrs: Danh sách đầu ghi
+- cameras: Danh sách camera
+
 Khi người dùng hỏi về dữ liệu, LUÔN gọi hàm tương ứng để lấy dữ liệu thực từ database. Không bịa số liệu.
+Khi người dùng hỏi "hướng dẫn", "phần mềm có gì", "giúp đỡ", "help" → gọi getSoftwareGuide.
+Khi người dùng hỏi về tally, kiểm tra hư hỏng → gọi queryTallyEvents.
 Khi người dùng gửi hình ảnh, hãy trích xuất thông tin và hỏi xem họ có muốn thêm thiết bị không.`;
 
       const AI_MODELS = [
@@ -268,7 +305,7 @@ Khi người dùng gửi hình ảnh, hãy trích xuất thông tin và hỏi xe
             contents: apiContents,
             config: {
               systemInstruction: systemInstruction,
-              tools: [{ functionDeclarations: [addDvrDeclaration, addCameraDeclaration, queryContainerLogsDeclaration, getStatisticsDeclaration, queryDeviceStatusDeclaration, queryVehicleEventsDeclaration, getSystemConfigDeclaration] }]
+              tools: [{ functionDeclarations: [addDvrDeclaration, addCameraDeclaration, queryContainerLogsDeclaration, getStatisticsDeclaration, queryDeviceStatusDeclaration, queryVehicleEventsDeclaration, getSystemConfigDeclaration, queryTallyEventsDeclaration, getSoftwareGuideDeclaration] }]
             }
           });
           usedModel = model;
@@ -345,6 +382,12 @@ Khi người dùng gửi hình ảnh, hãy trích xuất thông tin và hỏi xe
           }
           else if (call.name === 'getSystemConfig') {
             functionResults[call.name] = getSystemConfig();
+          }
+          else if (call.name === 'queryTallyEvents') {
+            functionResults[call.name] = await queryTallyEvents(args);
+          }
+          else if (call.name === 'getSoftwareGuide') {
+            functionResults[call.name] = getSoftwareGuide();
           }
         }
 

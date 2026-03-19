@@ -1,19 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { DVR, Camera } from '../types';
-import { Maximize2, VideoOff, ExternalLink, Image as ImageIcon, Server, Camera as CameraIcon, ChevronRight, ChevronDown, LayoutGrid, X } from 'lucide-react';
+import { Maximize2, VideoOff, ExternalLink, Image as ImageIcon, Server, Camera as CameraIcon, ChevronRight, ChevronDown, LayoutGrid, X, Video } from 'lucide-react';
 
 interface Props {
   dvrs: DVR[];
   cameras: Camera[];
 }
 
-const CameraFeed = ({ cam, dvr }: { cam: Camera, dvr?: DVR }) => {
+const CameraFeed = ({ cam, dvr, viewMode }: { cam: Camera, dvr?: DVR, viewMode: 'snapshot' | 'video' }) => {
   const [snapshotUrl, setSnapshotUrl] = useState<string | null>(null);
   const [error, setError] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
     let timeoutId: NodeJS.Timeout;
+
+    if (viewMode === 'video') {
+      // Chế độ Live Video
+      // Nếu camera có sẵn stream_url (ví dụ link HLS/WebRTC), dùng luôn
+      // Nếu không, dùng luồng MJPEG từ Python Server
+      const videoUrl = cam.stream_url?.trim() || `http://localhost:5000/video_feed/${cam.id}`;
+      setSnapshotUrl(videoUrl);
+      setError(false);
+      return () => { isMounted = false; };
+    }
 
     let targetUrl = cam.stream_url?.trim();
     
@@ -116,6 +126,9 @@ const CameraFeed = ({ cam, dvr }: { cam: Camera, dvr?: DVR }) => {
         alt={cam.name}
         className="w-full h-full object-cover"
         referrerPolicy="no-referrer"
+        onError={() => {
+          setError(true);
+        }}
       />
     );
   }
@@ -128,8 +141,13 @@ const CameraFeed = ({ cam, dvr }: { cam: Camera, dvr?: DVR }) => {
         <VideoOff className="w-8 h-8 mb-2 opacity-50" />
       )}
       <span className="text-sm font-medium mb-2 text-center px-4">
-        {error ? 'Không thể tải ảnh chụp' : 'Chưa cấu hình luồng'}
+        {error ? (viewMode === 'video' ? 'Không thể kết nối Video Stream' : 'Không thể tải ảnh chụp') : 'Chưa cấu hình luồng'}
       </span>
+      {viewMode === 'video' && error && (
+        <span className="text-xs text-red-400/70 text-center px-4 mb-2">
+          Vui lòng kiểm tra Flask Server đang chạy ở cổng 5000 và ID camera hợp lệ.
+        </span>
+      )}
       {dvr && (
         <a 
           href={`http://${dvr.ip_address}:${dvr.port}`}
@@ -147,6 +165,7 @@ const CameraFeed = ({ cam, dvr }: { cam: Camera, dvr?: DVR }) => {
 
 export default function LiveView({ dvrs, cameras }: Props) {
   const [gridSize, setGridSize] = useState<1 | 4 | 9 | 16 | 25>(9);
+  const [viewMode, setViewMode] = useState<'snapshot' | 'video'>('snapshot');
   const [selectedDvrId, setSelectedDvrId] = useState<string | null>(null);
   const [selectedCamId, setSelectedCamId] = useState<string | null>(null);
   const [expandedDvrs, setExpandedDvrs] = useState<string[]>(dvrs.map(d => d.id));
@@ -257,22 +276,48 @@ export default function LiveView({ dvrs, cameras }: Props) {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-xl font-semibold text-gray-100">Xem Trực Tiếp</h2>
-            <p className="text-sm text-gray-400">Giám sát camera thời gian thực (Hỗ trợ Snapshot Mode)</p>
+            <p className="text-sm text-gray-400">Giám sát camera thời gian thực</p>
           </div>
-          <div className="flex bg-[#16181d] p-1 rounded-lg border border-[#2a2d36]">
-            {[1, 4, 9, 16, 25].map((size) => (
+          <div className="flex items-center gap-4">
+            <div className="flex bg-[#16181d] p-1 rounded-lg border border-[#2a2d36]">
               <button
-                key={size}
-                onClick={() => setGridSize(size as 1 | 4 | 9 | 16 | 25)}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                  gridSize === size 
-                    ? 'bg-[#2a2d36] text-white' 
+                onClick={() => setViewMode('snapshot')}
+                className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                  viewMode === 'snapshot' 
+                    ? 'bg-blue-500/20 text-blue-400' 
                     : 'text-gray-400 hover:text-gray-200'
                 }`}
               >
-                {size} Cam
+                <ImageIcon className="w-4 h-4" />
+                Snapshot
               </button>
-            ))}
+              <button
+                onClick={() => setViewMode('video')}
+                className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                  viewMode === 'video' 
+                    ? 'bg-emerald-500/20 text-emerald-400' 
+                    : 'text-gray-400 hover:text-gray-200'
+                }`}
+              >
+                <Video className="w-4 h-4" />
+                Live Video
+              </button>
+            </div>
+            <div className="flex bg-[#16181d] p-1 rounded-lg border border-[#2a2d36]">
+              {[1, 4, 9, 16, 25].map((size) => (
+                <button
+                  key={size}
+                  onClick={() => setGridSize(size as 1 | 4 | 9 | 16 | 25)}
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    gridSize === size 
+                      ? 'bg-[#2a2d36] text-white' 
+                      : 'text-gray-400 hover:text-gray-200'
+                  }`}
+                >
+                  {size} Cam
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -293,7 +338,7 @@ export default function LiveView({ dvrs, cameras }: Props) {
                 const dvr = dvrs.find(d => d.id === cam.dvr_id);
                 return (
                   <div key={cam.id} className="relative bg-[#16181d] rounded-xl border border-[#2a2d36] overflow-hidden group aspect-video">
-                    <CameraFeed cam={cam} dvr={dvr} />
+                    <CameraFeed cam={cam} dvr={dvr} viewMode={viewMode} />
                     
                     {/* Overlay */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
@@ -341,7 +386,7 @@ export default function LiveView({ dvrs, cameras }: Props) {
             className="relative w-full max-w-7xl aspect-video bg-[#16181d] rounded-xl overflow-hidden border border-[#2a2d36] shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <CameraFeed cam={fullscreenCam} dvr={dvrs.find(d => d.id === fullscreenCam.dvr_id)} />
+            <CameraFeed cam={fullscreenCam} dvr={dvrs.find(d => d.id === fullscreenCam.dvr_id)} viewMode={viewMode} />
             
             {/* Top Bar */}
             <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-start bg-gradient-to-b from-black/80 to-transparent">
