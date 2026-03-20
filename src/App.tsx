@@ -5,6 +5,7 @@ import DeviceStatus from './components/DeviceStatus';
 import VehicleLog from './components/VehicleLog';
 import TallyLog from './components/TallyLog';
 import DeviceManagement from './components/DeviceManagement';
+import NetworkManagement from './components/NetworkManagement';
 import AIChatbox from './components/AIChatbox';
 import ContainerGate from './components/ContainerGate';
 import { Tab, DVR, Camera } from './types';
@@ -62,6 +63,7 @@ export default function App() {
             {activeTab === 'vehicles' && <VehicleLog dvrs={dvrs} cameras={cameras} />}
             {activeTab === 'tally' && <TallyLog />}
             {activeTab === 'container_gate' && <ContainerGate />}
+            {activeTab === 'network' && <NetworkManagement />}
             {activeTab === 'management' && (
               <DeviceManagement 
                 dvrs={dvrs} 

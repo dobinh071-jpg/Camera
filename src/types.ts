@@ -1,4 +1,4 @@
-export type Tab = 'live' | 'status' | 'vehicles' | 'tally' | 'management' | 'container_gate';
+export type Tab = 'live' | 'status' | 'vehicles' | 'tally' | 'management' | 'container_gate' | 'network';
 
 export interface Camera {
   id: string;
@@ -49,4 +49,34 @@ export interface TallyEvent {
   image_top_2?: string;
   image_side_2?: string;
   direction?: 'in' | 'out';
+}
+
+export interface NetworkDevice {
+  id: string;
+  mac_address: string;
+  last_ip_address: string;
+  device_name?: string;
+  owner_name?: string;
+  device_type?: string;
+  status: 'online' | 'offline';
+  last_seen: string;
+  created_at: string;
+}
+
+export interface NetworkAlert {
+  id: string;
+  alert_type: string;
+  ip_address: string;
+  mac_1: string;
+  mac_2: string;
+  message: string;
+  resolved: boolean;
+  created_at: string;
+}
+
+export interface NetworkSubnet {
+  id: string;
+  subnet: string;
+  name: string;
+  created_at: string;
 }

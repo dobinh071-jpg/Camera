@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutGrid, Activity, Car, Camera as CameraIcon, Settings, ShieldCheck } from 'lucide-react';
+import { LayoutGrid, Activity, Car, Camera as CameraIcon, Settings, ShieldCheck, Network } from 'lucide-react';
 import { Tab } from '../types';
 
 interface SidebarProps {
@@ -14,6 +14,7 @@ export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
     { id: 'vehicles', label: 'Quản Lý Xe Ra Vào', icon: Car },
     { id: 'tally', label: 'Tally Container', icon: CameraIcon },
     { id: 'container_gate', label: 'Cổng Container AI', icon: ShieldCheck },
+    { id: 'network', label: 'Quản Lý Mạng', icon: Network },
     { id: 'management', label: 'Quản Lý Thiết Bị', icon: Settings },
   ] as const;
 
@@ -59,7 +60,7 @@ export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
               Online
             </span>
           </div>
-          <p className="text-xs text-gray-500 font-mono">Design by GIABIN</p>
+          <p className="text-xs text-gray-500 font-mono">v2.4.1-stable</p>
         </div>
       </div>
     </div>
